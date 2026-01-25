@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% load static %} 
+
+{% block title %} 
+Arcade 
+{% endblock %} 
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static "blog/index.css" %}" \>
+<link rel="stylesheet" href="{% static "blog/post.css" %}" \>
+{% endblock%}
+
+{% block content%}
+<section id="welcome">
+  <header>
+    <img src="{% static "blog/images/danjin.jpg" %}" alt="Elpis - The Author of This Blog" />
+    <h2> Project Arcade </h2>
+  </header>
+  <p> Hi, I'm Elpis! I love puzzles :) </p>
+</section>
+
+<section id="latest-posts">
+  <h2> Featured Games </h2>
+
+  <ul>
+  {% for post in posts %}
+    {% include "blog/includes/post.html" %}
+  {% endfor %}
+  </ul>
+</section>
+
+<section id="about">
+  <h2> About </h2>
+  <p> I'm going to add a some games to this site </p>
+  <p> Stay tuned! </p>
+</section>
+{% endblock %}

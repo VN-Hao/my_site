@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %} 
+
+{% block title %} 
+Chat 
+{% endblock %}
+
+{% block css_files %}
+<link rel="stylesheet" href="{% static "blog/chat.css" %}">
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+  <aside class="friend-list">
+    <div class="search-bar">
+      <input type="text" placeholder="Search friends...">
+    </div>
+    <ul class="friends">
+      <li class="friend active">
+        <div>
+          <img class="avatar" src="{% static "blog/images/danjin.jpg" %}">
+        </div>
+        <div class="friend-info">
+          <span class="name">Danjin</span>
+          <span class="status">Online</span>
+        </div>
+      </li>
+    </ul>
+  </aside>
+
+  <section class="chat-interface">
+    <header class="chat-header">
+      <div>
+        <img class="avatar" src="{% static "blog/images/danjin.jpg" %}">
+      </div>
+      <div class="chat-info">
+        <h3>Danjin</h3>
+        <span>Online</span>
+      </div>
+    </header>
+
+    <div class="messages">
+      {% for pair in chat_history  %}
+      <div class="message sent">
+        <p>{{ pair.user }}</p>
+        <span class="time">10:00 AM</span>
+      </div>
+      <div class="message received">
+        <p>{{ pair.bot }}</p>
+        <span class="time">10:02 AM</span>
+      </div>
+      {% endfor %}
+    </div>
+
+    <form class="chat-input" method="POST">
+      {% csrf_token %}
+      {{ form }}
+      <button>Send</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
