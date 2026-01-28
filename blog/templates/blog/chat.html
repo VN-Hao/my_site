@@ -54,7 +54,7 @@ Chat
 
     <form class="chat-input" method="POST">
       {% csrf_token %}
-      {{ form }}
+      {{ form.chat_input }}
       <button>Send</button>
     </form>
   </section>
