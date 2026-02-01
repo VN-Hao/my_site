@@ -26,20 +26,10 @@
         <p>The secret is always hidden inside the curly braces <code>{}</code>.</p>
     </div>
 
-    <div class="practice-area">
-        <h3>Level 0: The invisible ink</h3>
-        <p>
-            Hackers often need to look beneath the surface. 
-            The browser renders HTML, but sometimes important data is hidden in comments.
-            Try inspecting this page's source code!
-        </p>
-        <!-- Congratulations! You found the first flag: elpis{always_check_the_source_code} -->
-        
-        <form action="{% url 'verify-flag' %}" method="POST">
-          {% csrf_token %}
-          <input type="text" name="flag" id="flagInput" placeholder="Enter elpis{...}">
-          <button class="submit-btn" type="submit">Submit Flag</button>
-        </form>
+    <div style="margin-top: 2rem; text-align: center;">
+        <a href="{% url 'game-level-page' post.slug 1 %}" class="submit-btn" style="text-decoration: none; display: inline-block;">
+          Start Challenge
+        </a>
     </div>
 </section>
 {% endblock %}

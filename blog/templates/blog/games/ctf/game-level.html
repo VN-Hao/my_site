@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+{{ level_title}}
+{% endblock %}
+
+{% block css_files %}
+    <link rel="stylesheet" href="{% static "blog/ctf.css" %}">
+{% endblock %}
+
+{% block content %}
+<section class="ctf-container">
+    <div class="practice-area">
+        <h1>Level {{ level_number }}: {{ level_title }}</h1>
+        <p> {{ level_description }} </p>
+        <!-- Congratulations! You found the first flag: elpis{always_check_the_source_code} -->
+        
+        <form action="{% url 'verify-flag' %}" method="POST">
+          {% csrf_token %}
+          <input type="hidden" name="level_number" value="{{ level_number }}">
+          <input type="text" name="flag" id="flagInput" placeholder="Enter elpis{...}">
+          <button class="submit-btn" type="submit">Submit Flag</button>
+        </form>
+    </div>
+</section>
+{% endblock %}

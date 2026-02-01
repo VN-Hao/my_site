@@ -6,5 +6,10 @@ urlpatterns = [
     path("posts", views.posts_page, name="posts-page"),
     path("chat", views.ChatView.as_view(), name="chat"),
     path("posts/<slug:slug>", views.post_detail_page, name="post-detail-page"),
-    path("verify-flag", views.verify_flag, name="verify-flag")
+    path(
+        "posts/<slug:slug>/level-<int:level_number>",
+        views.game_level_page,
+        name="game-level-page",
+    ),
+    path("verify-flag", views.verify_flag, name="verify-flag"),
 ]

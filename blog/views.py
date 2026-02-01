@@ -1,7 +1,8 @@
 from django.shortcuts import render, get_object_or_404
 from django.views import View
 from django.http import HttpResponse
-from .models import Post
+from django.urls import reverse
+from .models import Post, CTF
 from .forms import ChatInputForm
 from .bot import ChatBot
 
@@ -27,9 +28,22 @@ def posts_page(request):
 
 def post_detail_page(request, slug):
     post = get_object_or_404(Post, slug=slug)
+    path = f"blog/games/{slug}/introduction.html"
     return render(
-        request, f"blog/{slug}.html", {"post": post, "post_tags": post.tags.all()}
+        request, path, {"post": post, "post_tags": post.tags.all()}
     )
+
+
+def game_level_page(request, slug, level_number):
+    print(CTF.objects.all())
+    challenge = get_object_or_404(CTF, level_number=level_number)
+    print(challenge)
+    path = f"blog/games/{slug}/game-level.html"
+    return render(request, path, {
+        "level_number": level_number,
+        "level_title": challenge.level_title,
+        "level_description": challenge.level_description
+    })
 
 
 class ChatView(View):
@@ -65,8 +79,11 @@ class ChatView(View):
 
 def verify_flag(request):
     # request method here will always be POST
+    print(request.POST)
     user_answer = request.POST.get("flag")
-    flag = "elpis{always_check_the_source_code}"
+    level_number = int(request.POST.get("level_number"))
+    challenge = CTF.objects.get(level_number=level_number)
+    flag = challenge.level_answer
     is_correct = user_answer == flag
     if is_correct:
         return HttpResponse("Correct")

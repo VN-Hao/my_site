@@ -34,7 +34,7 @@ ALLOWED_HOSTS = [
     "arcade.dpdns.org",
     "www.arcade.dpdns.org",
     "arcadelab.site",
-    "www.arcadelab.site"
+    "www.arcadelab.site",
 ]
 
 
@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "blog",
-    "storages"
+    "storages",
 ]
 
 MIDDLEWARE = [
@@ -66,9 +66,7 @@ ROOT_URLCONF = "my_site.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [
-            BASE_DIR / "templates"    
-        ],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -93,7 +91,7 @@ DATABASES = {
         "USER": getenv("DB_USER"),
         "PASSWORD": getenv("DB_PASSWORD"),
         "HOST": getenv("DB_HOST"),
-        "PORT": getenv("DB_PORT")
+        "PORT": getenv("DB_PORT"),
     }
 }
 
@@ -135,9 +133,7 @@ USE_TZ = True
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_URL = "static/"
 
-STATICFILES_DIRS = [
-    BASE_DIR / "static"
-]
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 AWS_STORAGE_BUCKET_NAME = "project-arcade-web"
 AWS_S3_REGION_NAME = "us-east-1"
@@ -146,11 +142,17 @@ AWS_SECRET_ACCESS_KEY = getenv("AWS_SECRET_ACCESS_KEY")
 
 AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
 
+backend_path = (
+    "django.contrib.staticfiles.storage.StaticFilesStorage"
+    if DEBUG
+    else "storages.backends.s3boto3.S3Boto3Storage"
+)
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
-        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "BACKEND": backend_path,
     },
 }

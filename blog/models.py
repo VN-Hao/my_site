@@ -32,3 +32,15 @@ class Post(models.Model):
 
     def __str__(self):
         return self.title
+    
+class CTF(models.Model):
+    level_number = models.IntegerField()
+    level_title = models.CharField(max_length=200)
+    level_description = models.TextField(null=True)
+    level_answer = models.CharField(max_length=100)
+    
+    class Meta:
+        verbose_name_plural = "CTF Challenges"
+
+    def __str__(self):
+        return f"Level {self.level_number}"
