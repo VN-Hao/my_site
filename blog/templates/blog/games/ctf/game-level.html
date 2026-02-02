@@ -22,6 +22,17 @@
           <input type="text" name="flag" id="flagInput" placeholder="Enter elpis{...}">
           <button class="submit-btn" type="submit">Submit Flag</button>
         </form>
+
+        {% if status == "correct" %}
+        <p class="message success"> Correct! </p>
+        <div style="text-align: center; margin-top: 1rem;">
+          <a href="{% url 'game-level-page' 'ctf' level_number|add:1 %}" class="next-level-btn">
+            Next Level
+          </a>
+        </div>
+        {% elif status == "incorrect" %}
+        <p class="message error"> Incorrect! Please try again ^^ </p>
+        {% endif %}
     </div>
 </section>
 {% endblock %}

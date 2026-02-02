@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+{{ post.title }}
+{% endblock %}
+
+{% block css_files %}
+    <link rel="stylesheet" href="{% static "blog/ctf.css" %}">
+{% endblock %}
+
+{% block content %}
+<section class="ctf-container">
+    <h1>Welcome to Brainemy</h1>
+    <p>
+        Ready to test your cognitive limits? <strong>Brainemy</strong> is a collection of brain-teasing quizzes and quantitative puzzles designed to sharpen your mind.
+    </p>
+
+    <div class="instruction-box">
+        <h3>How It Works</h3>
+        <p>
+            You will face a series of logical riddles, math problems, and pattern recognition challenges. 
+        </p>
+        <p>
+            Solve the problem, enter your answer, and prove your mental prowess.
+        </p>
+    </div>
+
+    <div style="margin-top: 2rem; text-align: center;">
+        <a href="{% url 'game-level-page' post.slug 1 %}" class="submit-btn" style="text-decoration: none; display: inline-block;">
+          Start Quiz
+        </a>
+    </div>
+</section>
+{% endblock %}

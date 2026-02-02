@@ -11,5 +11,5 @@ urlpatterns = [
         views.game_level_page,
         name="game-level-page",
     ),
-    path("verify-flag", views.verify_flag, name="verify-flag"),
+    path("verify-flag", views.verify_flag, name="verify-flag")
 ]

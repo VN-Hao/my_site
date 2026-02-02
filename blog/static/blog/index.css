@@ -40,7 +40,8 @@
   background-color: white;
   padding: 2rem;
   border-radius: 12px;
-  width: 60rem;
+  width: 90%;
+  max-width: 60rem;
   margin: -3rem auto 2rem auto;
   box-shadow: 1px 1px 12px rgba(0, 0, 0, 0.4);
 }
@@ -75,4 +76,10 @@
 #about p {
   font-size: 1.5rem;
   color: #353535;
+}
+
+@media (max-width: 40rem) {
+  #latest-posts ul {
+    flex-direction: column;
+  }
 }

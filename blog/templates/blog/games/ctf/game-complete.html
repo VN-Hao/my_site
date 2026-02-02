@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+All Levels Completed!
+{% endblock %}
+
+{% block css_files %}
+    <link rel="stylesheet" href="{% static "blog/ctf.css" %}">
+{% endblock %}
+
+{% block content %}
+<section class="ctf-container">
+    <div class="practice-area" style="text-align: center;">
+        <h1>Congratulations!</h1>
+        <p class="message success">You have played every available level.</p>
+        <p>Stay tuned for more content!</p>
+        <br>
+        <a href="{% url 'posts-page' %}" class="next-level-btn">Back to All Games</a>
+    </div>
+</section>
+{% endblock %}

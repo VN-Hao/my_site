@@ -1,7 +1,7 @@
 from django.shortcuts import render, get_object_or_404
 from django.views import View
-from django.http import HttpResponse
-from django.urls import reverse
+from django.http import Http404, JsonResponse
+from django.db.models import Max
 from .models import Post, CTF
 from .forms import ChatInputForm
 from .bot import ChatBot
@@ -34,15 +34,21 @@ def post_detail_page(request, slug):
     )
 
 
-def game_level_page(request, slug, level_number):
-    print(CTF.objects.all())
-    challenge = get_object_or_404(CTF, level_number=level_number)
-    print(challenge)
+def game_level_page(request, slug, level_number, status="unanswered"):
+    try:
+        challenge = CTF.objects.get(level_number=level_number)
+    except CTF.DoesNotExist:
+        max_level = CTF.objects.aggregate(Max('level_number'))['level_number__max']
+        if max_level is not None and level_number > max_level:
+            return render(request, f"blog/games/{slug}/game-complete.html")
+        raise Http404("Level not found")
+
     path = f"blog/games/{slug}/game-level.html"
     return render(request, path, {
         "level_number": level_number,
         "level_title": challenge.level_title,
-        "level_description": challenge.level_description
+        "level_description": challenge.level_description,
+        "status": status
     })
 
 
@@ -62,6 +68,10 @@ class ChatView(View):
 
     def post(self, request):
         form = ChatInputForm(request.POST)
+
+        if "chat_history" not in request.session:
+            request.session["chat_history"] = []
+
         if form.is_valid():
             user_input = form.cleaned_data["chat_input"]
             bot_response = bot.get_response(user_input)
@@ -69,6 +79,12 @@ class ChatView(View):
             history = request.session["chat_history"]
             history.append({"user": user_input, "bot": bot_response})
             request.session["chat_history"] = history
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({"user": user_input, "bot": bot_response})
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+             return JsonResponse({"error": "Invalid form data"}, status=400)
 
         return render(
             request,
@@ -79,12 +95,10 @@ class ChatView(View):
 
 def verify_flag(request):
     # request method here will always be POST
-    print(request.POST)
     user_answer = request.POST.get("flag")
     level_number = int(request.POST.get("level_number"))
     challenge = CTF.objects.get(level_number=level_number)
     flag = challenge.level_answer
     is_correct = user_answer == flag
-    if is_correct:
-        return HttpResponse("Correct")
-    return HttpResponse("Incorrect")
+    status = "correct" if is_correct else "incorrect"
+    return game_level_page(request, "ctf", level_number, status)
