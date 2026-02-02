@@ -1,0 +1,527 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Infinite Tic-Tac-Toe{% endblock %}
+
+{% block css_files %}
+<style>
+    /* Prevent scrolling on the main page to give an app-like feel */
+    body {
+        overflow: hidden;
+    }
+
+    .ctf-container {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 6rem); /* Approximate header height */
+        max-width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    #game-wrapper {
+        position: relative;
+        flex-grow: 1; /* Fill remaining vertical space */
+        width: 100%;
+        border: 2px solid #333;
+        overflow: hidden;
+        background-color: #f0f0f0;
+        cursor: grab;
+        border-radius: 8px;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
+    }
+    
+    #game-wrapper:active {
+        cursor: grabbing;
+    }
+
+    #gameCanvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+    }
+
+    .acrylic-badge {
+        background: rgba(255, 255, 255, 0.6);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 5px 12px;
+        border-radius: 12px;
+        font-family: 'Segoe UI', sans-serif;
+        color: #333;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9em;
+        white-space: nowrap;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ctf-container">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+        <div id="game-info" style="display: flex; gap: 10px; flex-wrap: wrap;">
+             <div class="acrylic-badge"><strong>Room:</strong> <span id="roomIdDisplay">{{ request.GET.room_id|default:"Local" }}</span></div>
+             <div class="acrylic-badge"><strong>You:</strong> <span id="playerSymbolDisplay" style="color: {% if request.GET.action == 'join' %}#1976D2{% else %}#D32F2F{% endif %}; font-weight: bold;">{% if request.GET.action == 'join' %}O{% else %}X{% endif %}</span></div>
+             <div class="acrylic-badge"><strong>Status:</strong> <span id="statusDisplay">Waiting for opponent...</span></div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="clearBoard()" class="acrylic-badge" style="cursor: pointer; background-color: rgba(217, 83, 79, 0.8); color: white; border: 1px solid rgba(217, 83, 79, 0.5);">Clear Board</button>
+            <button onclick="endGame()" class="acrylic-badge" style="cursor: pointer; background-color: #333; color: white; border: 1px solid #555;">End Game</button>
+        </div>
+    </div>
+    
+    <div id="game-wrapper">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div style="margin-top: 0.5rem; text-align: center; color: #666; font-size: 0.9em;">
+        <p style="margin: 0; padding-bottom: 5px;">Drag to pan • Scroll to zoom • Click to place mark • 5 in a row to win</p>
+        <button onclick="resetView()" class="submit-btn" style="padding: 3px 10px; font-size: 0.85em; cursor: pointer;">Re-center</button>
+    </div>
+</div>
+
+
+<script>
+    const CSRF_TOKEN = '{{ csrf_token }}';
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('game-wrapper');
+    const statusDisplay = document.getElementById('statusDisplay');
+
+    const ROOM_ID = "{{ request.GET.room_id|default:'' }}";
+    const USER_ACTION = "{{ request.GET.action|default:'' }}"; 
+    // If action=host, we play X. If action=join, we play O.
+    const MY_SYMBOL = USER_ACTION === 'join' ? 'O' : 'X';
+
+    let state = {
+        moves: {}, // Key: "x,y", Value: "X" or "O"
+        currentPlayer: 'X', // Server determines usually, but count(moves) works
+        offsetX: 0, 
+        offsetY: 0, 
+        scale: 1,
+        cellSize: 50,
+        isDragging: false,
+        dragDistance: 0,
+        lastMouseX: 0,
+        lastMouseY: 0,
+        hoverX: null,
+        hoverY: null,
+        winner: null,
+        winningLine: []
+    };
+
+    // Calculate current player based on moves count
+    function updateCurrentPlayer() {
+        checkWinCondition(); // Check for win every update
+        
+        if (state.winner) {
+            if (state.winner === MY_SYMBOL) {
+                statusDisplay.innerHTML = "<strong>YOU WON!</strong>";
+                statusDisplay.style.color = "#28a745";
+            } else {
+                statusDisplay.innerHTML = "<strong>YOU LOST!</strong>";
+                statusDisplay.style.color = "#dc3545";
+            }
+            return;
+        }
+
+        const moveCount = Object.keys(state.moves).length;
+        state.currentPlayer = (moveCount % 2 === 0) ? 'X' : 'O';
+        
+        let statusText = "";
+        if (state.currentPlayer === MY_SYMBOL) {
+            statusText = "Your Turn (" + MY_SYMBOL + ")";
+            statusDisplay.style.color = "#28a745"; // Green
+        } else {
+            statusText = "Opponent's Turn (" + state.currentPlayer + ")";
+             statusDisplay.style.color = "#dc3545"; // Red
+        }
+        statusDisplay.innerText = statusText;
+    }
+
+    function checkWinCondition() {
+        // Iterate through all moves to find 5 in a row
+        const moves = state.moves;
+        const directions = [
+            [1, 0], // Horizontal
+            [0, 1], // Vertical
+            [1, 1], // Diagonal
+            [1, -1] // Anti-diagonal
+        ];
+
+        for (const key in moves) {
+            const [x, y] = key.split(',').map(Number);
+            const player = moves[key];
+
+            for (const [dx, dy] of directions) {
+                let line = [[x, y]];
+                let count = 1;
+                
+                // Check forward
+                for (let i = 1; i < 5; i++) {
+                     const nextKey = `${x + dx * i},${y + dy * i}`;
+                     if (moves[nextKey] === player) {
+                         count++;
+                         line.push([x + dx * i, y + dy * i]);
+                     } else {
+                         break;
+                     }
+                }
+                
+                if (count >= 5) {
+                    state.winner = player;
+                    state.winningLine = line;
+                    return;
+                }
+            }
+        }
+        state.winner = null;
+        state.winningLine = [];
+    }
+
+    // API Calls
+    async function sendMove(x, y, player) {
+        if (!ROOM_ID) return; // Local mode not fully supported with API yet
+        
+        try {
+            const response = await fetch("{% url 'ttt-move' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": CSRF_TOKEN
+                },
+                body: JSON.stringify({
+                    room_id: ROOM_ID,
+                    x: x,
+                    y: y,
+                    player: player
+                })
+            });
+            const data = await response.json();
+            if (data.status === 'success') {
+                // Good
+                fetchUpdates(); // Sync immediately
+            } else {
+                alert(data.message);
+                // Revert if optimistic (TODO)
+            }
+        } catch (e) {
+            console.error("Move error", e);
+        }
+    }
+
+    async function fetchUpdates() {
+        if (!ROOM_ID) return;
+
+        try {
+            const response = await fetch(`{% url 'ttt-updates' %}?room_id=${ROOM_ID}`);
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                // Rebuild moves
+                let newMoves = {};
+                data.moves.forEach(m => {
+                    const key = `${m.x},${m.y}`;
+                    newMoves[key] = m.player;
+                });
+                
+                // Check if changed
+                if (JSON.stringify(newMoves) !== JSON.stringify(state.moves)) {
+                    state.moves = newMoves;
+                    updateCurrentPlayer();
+                    draw();
+                }
+            } else if (data.message === "Room not found") {
+                // Room closed by host or ended
+                alert("The game room has been closed.");
+                window.location.href = "{% url 'post-detail-page' 'tic-tac-toe' %}";
+            }
+        } catch (e) {
+            console.error("Update error", e);
+        }
+    }
+
+    async function sendClear() {
+        if (!ROOM_ID) return;
+         try {
+            const response = await fetch("{% url 'ttt-clear' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": CSRF_TOKEN
+                },
+                body: JSON.stringify({ room_id: ROOM_ID })
+            });
+            fetchUpdates();
+         } catch(e) { console.error(e); }
+    }
+
+    async function endGame() {
+        if (!ROOM_ID) {
+            // If local/no room, just go back
+            window.location.href = "{% url 'post-detail-page' 'tic-tac-toe' %}";
+            return;
+        }
+        if (confirm("Are you sure you want to end the game? This will close the room for everyone.")) {
+            try {
+                const response = await fetch("{% url 'ttt-end' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": CSRF_TOKEN
+                    },
+                    body: JSON.stringify({ room_id: ROOM_ID })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    window.location.href = "{% url 'post-detail-page' 'tic-tac-toe' %}";
+                } else {
+                    alert(data.message);
+                }
+            } catch (e) {
+                console.error("End game error", e);
+            }
+        }
+    }
+
+    // Polling
+    if (ROOM_ID) {
+        // Use a self-scheduling poll loop for better responsiveness (approx 4-5 updates/sec)
+        const poll = async () => {
+            await fetchUpdates();
+            setTimeout(poll, 250); 
+        };
+        poll();
+    }
+
+    // Resize canvas to fill container
+    function resizeCanvas() {
+        canvas.width = container.clientWidth;
+        canvas.height = container.clientHeight;
+        // Center the origin initially
+        if (state.offsetX === 0 && state.offsetY === 0) {
+           state.offsetX = canvas.width / 2;
+           state.offsetY = canvas.height / 2;
+        }
+        draw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function draw() {
+        // Clear canvas
+        ctx.fillStyle = '#f0f0f0';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const cellSize = state.cellSize * state.scale;
+        
+        // Calculate visible grid range
+        const startCol = Math.floor(-state.offsetX / cellSize);
+        const startRow = Math.floor(-state.offsetY / cellSize);
+        const endCol = startCol + Math.ceil(canvas.width / cellSize) + 1;
+        const endRow = startRow + Math.ceil(canvas.height / cellSize) + 1;
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#ccc';
+        
+        // Draw Grid Lines
+        ctx.beginPath();
+        for (let col = startCol; col <= endCol; col++) {
+            const x = Math.floor(col * cellSize + state.offsetX) + 0.5;
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, canvas.height);
+        }
+        for (let row = startRow; row <= endRow; row++) {
+            const y = Math.floor(row * cellSize + state.offsetY) + 0.5;
+            ctx.moveTo(0, y);
+            ctx.lineTo(canvas.width, y);
+        }
+        ctx.stroke();
+
+        // Draw Moves
+        ctx.font = `${Math.floor(cellSize * 0.6)}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        for (const [key, value] of Object.entries(state.moves)) {
+            const [gx, gy] = key.split(',').map(Number);
+            const x = gx * cellSize + state.offsetX + cellSize / 2;
+            const y = gy * cellSize + state.offsetY + cellSize / 2;
+            
+            // Only draw if within bounds
+            if (x > -cellSize && x < canvas.width + cellSize && 
+                y > -cellSize && y < canvas.height + cellSize) {
+                
+                ctx.fillStyle = value === 'X' ? '#D32F2F' : '#1976D2';
+                ctx.fillText(value, x, y);
+            }
+        }
+
+        // Draw Winning Line
+        if (state.winner && state.winningLine.length > 0) {
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#28a745'; // Green line for win
+            ctx.beginPath();
+            
+            // Move to first cell
+            const [x1, y1] = state.winningLine[0];
+            const startX = x1 * cellSize + state.offsetX + cellSize / 2;
+            const startY = y1 * cellSize + state.offsetY + cellSize / 2;
+            ctx.moveTo(startX, startY);
+            
+            // Draw to last cell
+            const [x2, y2] = state.winningLine[state.winningLine.length - 1];
+            const endX = x2 * cellSize + state.offsetX + cellSize / 2;
+            const endY = y2 * cellSize + state.offsetY + cellSize / 2;
+            ctx.lineTo(endX, endY);
+            
+            ctx.stroke();
+        }
+
+        // Highlight hovered cell
+        if (state.hoverX !== null && state.hoverY !== null) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            const hx = state.hoverX * cellSize + state.offsetX;
+            const hy = state.hoverY * cellSize + state.offsetY;
+            ctx.fillRect(hx, hy, cellSize, cellSize);
+        }
+    }
+
+    function getGridCoords(clientX, clientY) {
+        const rect = canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        
+        const cellSize = state.cellSize * state.scale;
+        
+        const gridX = Math.floor((x - state.offsetX) / cellSize);
+        const gridY = Math.floor((y - state.offsetY) / cellSize);
+        
+        return { gridX, gridY };
+    }
+
+    function resetView() {
+        state.offsetX = canvas.width / 2;
+        state.offsetY = canvas.height / 2;
+        state.scale = 1;
+        draw();
+    }
+
+    function clearBoard() {
+        if (ROOM_ID) {
+            if (confirm("Are you sure you want to clear the board for everyone?")) {
+                sendClear();
+            }
+        } else {
+             state.moves = {};
+             state.currentPlayer = 'X';
+             draw();
+        }
+    }
+
+    // Input Handling
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+
+        const zoomIntensity = 0.1;
+        const delta = e.deltaY < 0 ? 1 : -1;
+        const factor = Math.exp(delta * zoomIntensity);
+        
+        // Limit zoom
+        const newScale = state.scale * factor;
+        if (newScale < 0.1 || newScale > 5) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        // Zoom towards mouse pointer
+        state.offsetX = mx - (mx - state.offsetX) * factor;
+        state.offsetY = my - (my - state.offsetY) * factor;
+        state.scale = newScale;
+
+        draw();
+    }, { passive: false });
+
+    canvas.addEventListener('mousedown', (e) => {
+        state.isDragging = true;
+        state.dragDistance = 0;
+        state.lastMouseX = e.clientX;
+        state.lastMouseY = e.clientY;
+        container.style.cursor = 'grabbing';
+    });
+
+    window.addEventListener('mouseup', () => {
+        state.isDragging = false;
+        container.style.cursor = 'grab';
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (state.isDragging) {
+            const dx = e.clientX - state.lastMouseX;
+            const dy = e.clientY - state.lastMouseY;
+            
+            // Accumulate distance to distinguish click vs drag
+            state.dragDistance += Math.abs(dx) + Math.abs(dy);
+
+            state.offsetX += dx;
+            state.offsetY += dy;
+            state.lastMouseX = e.clientX;
+            state.lastMouseY = e.clientY;
+            draw();
+        } else {
+            const { gridX, gridY } = getGridCoords(e.clientX, e.clientY);
+            if (state.hoverX !== gridX || state.hoverY !== gridY) {
+                state.hoverX = gridX;
+                state.hoverY = gridY;
+                draw();
+            }
+        }
+    });
+
+    canvas.addEventListener('click', (e) => {
+        // If we dragged more than a few pixels, it's a pan, not a click
+        if (state.dragDistance > 5) return;
+
+        if (!state.isDragging) {
+             // Stop if winner
+             if (state.winner) return;
+
+             const { gridX, gridY } = getGridCoords(e.clientX, e.clientY);
+             const key = `${gridX},${gridY}`;
+             
+             // Logic: Check if occupied
+             if (state.moves[key]) return;
+
+             // Logic: Check correct turn
+             if (state.currentPlayer !== MY_SYMBOL && ROOM_ID) {
+                 alert("It's not your turn!");
+                 return;
+             }
+
+             // Optimistic update
+             state.moves[key] = MY_SYMBOL;
+             // Toggle for local logic before sync confirms
+             state.currentPlayer = (MY_SYMBOL === 'X') ? 'O' : 'X';
+             draw();
+             updateCurrentPlayer();
+
+             if (ROOM_ID) {
+                 sendMove(gridX, gridY, MY_SYMBOL);
+             }
+        }
+    });
+
+    // Initial Setup
+    
+    // Wait for layout
+    setTimeout(() => {
+        resizeCanvas();
+        if (ROOM_ID) fetchUpdates(); // Initial fetch
+    }, 100);
+</script>
+{% endblock %}

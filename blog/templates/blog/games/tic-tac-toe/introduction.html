@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+{{ post.title }}
+{% endblock %}
+
+{% block css_files %}
+    <link rel="stylesheet" href="{% static "blog/ctf.css" %}">
+{% endblock %}
+
+{% block content %}
+<section class="ctf-container">
+    <h1>Welcome to Infinite Tic-Tac-Toe</h1>
+    <p>
+        Ready for an expanded challenge? <strong>Infinite Tic-Tac-Toe</strong> takes the classic game to a boundless board.
+        Can you outsmart your opponent on an endless field?
+    </p>
+
+    <div class="instruction-box">
+        <h3>How It Works</h3>
+        <p>
+            Two players take turns marking spaces in an infinite grid with X and O.
+        </p>
+        <p>
+            The player who succeeds in placing five of their marks in a horizontal, vertical, or diagonal row is the winner.
+        </p>
+    </div>
+
+    <div style="margin-top: 2rem; text-align: center;">
+        <div style="display: flex; gap: 1rem; justify-content: center;">
+            <a href="javascript:void(0)" onclick="openHostModal()" class="submit-btn" style="text-decoration: none; display: inline-block;">
+              Host a Room
+            </a>
+            <a href="javascript:void(0)" onclick="openJoinModal()" class="submit-btn" style="text-decoration: none; display: inline-block;">
+              Join Room
+            </a>
+        </div>
+    </div>
+
+    <!-- Modal for Hosting Room -->
+    <div id="hostRoomModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeHostModal()">&times;</span>
+        <h3>Host a Room</h3>
+        <p>Share this Room ID with your friend:</p>
+        <form action="{% url 'tic-tac-toe-game' %}" method="get">
+            <input type="hidden" name="action" value="host">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 5px;">
+                <input type="text" name="room_id" id="hostRoomIdDisplay" class="room-input" readonly style="text-align: center; font-weight: bold; letter-spacing: 1px;">
+                <button type="button" onclick="copyRoomId()" style="padding: 10px; cursor: pointer; border: 1px solid #ccc; background: #ddd; border-radius: 4px;" title="Copy to clipboard">📋</button>
+            </div>
+            <button type="submit" class="submit-btn" style="margin-top: 10px; cursor: pointer;">Start Game</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal for Joining Room -->
+    <div id="joinRoomModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeJoinModal()">&times;</span>
+        <h3>Join a Room</h3>
+        <p>Enter a valid Room ID:</p>
+        {% if error %}
+        <div style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align: center;">
+            <small>{{ error }}</small>
+        </div>
+        {% endif %}
+        <form action="{% url 'tic-tac-toe-game' %}" method="get">
+            <input type="hidden" name="action" value="join">
+            <input type="text" name="room_id" class="room-input" placeholder="Room ID" required>
+            <button type="submit" class="submit-btn" style="margin-top: 10px; cursor: pointer;">Join</button>
+        </form>
+      </div>
+    </div>
+
+    <style>
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.5); 
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%; 
+            max-width: 400px;
+            border-radius: 8px;
+            text-align: center;
+            color: #333;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .room-input {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+
+    <script>
+        function generateRoomId() {
+            return Math.random().toString(36).substring(2, 9).toUpperCase();
+        }
+
+        function openHostModal() {
+            var roomId = generateRoomId();
+            document.getElementById("hostRoomIdDisplay").value = roomId;
+            document.getElementById("hostRoomModal").style.display = "block";
+        }
+
+        function closeHostModal() {
+            document.getElementById("hostRoomModal").style.display = "none";
+        }
+
+        function copyRoomId() {
+             var copyText = document.getElementById("hostRoomIdDisplay");
+             copyText.select();
+             copyText.setSelectionRange(0, 99999); // For mobile devices
+             navigator.clipboard.writeText(copyText.value);
+             alert("Room ID copied: " + copyText.value);
+        }
+
+        function openJoinModal() {
+            document.getElementById("joinRoomModal").style.display = "block";
+        }
+
+        function closeJoinModal() {
+            document.getElementById("joinRoomModal").style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == document.getElementById("joinRoomModal")) {
+                closeJoinModal();
+            }
+            if (event.target == document.getElementById("hostRoomModal")) {
+                closeHostModal();
+            }
+        }
+
+        {% if error %}
+        // Automatically open the join modal if there's an error back from the server
+        window.addEventListener('DOMContentLoaded', (event) => {
+            openJoinModal();
+        });
+        {% endif %}
+    </script>
+</section>
+{% endblock %}

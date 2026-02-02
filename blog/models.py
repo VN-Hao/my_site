@@ -44,3 +44,21 @@ class CTF(models.Model):
 
     def __str__(self):
         return f"Level {self.level_number}"
+
+class Room(models.Model):
+    room_id = models.CharField(max_length=20, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.room_id
+
+class Move(models.Model):
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='moves')
+    x = models.IntegerField()
+    y = models.IntegerField()
+    player = models.CharField(max_length=1) # 'X' or 'O'
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['created_at']
+

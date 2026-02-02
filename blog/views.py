@@ -2,9 +2,11 @@ from django.shortcuts import render, get_object_or_404
 from django.views import View
 from django.http import Http404, JsonResponse
 from django.db.models import Max
-from .models import Post, CTF
+from .models import Post, CTF, Room, Move
 from .forms import ChatInputForm
 from .bot import ChatBot
+import json
+
 
 posts = Post.objects.all()
 bot = ChatBot()
@@ -102,3 +104,81 @@ def verify_flag(request):
     is_correct = user_answer == flag
     status = "correct" if is_correct else "incorrect"
     return game_level_page(request, "ctf", level_number, status)
+
+def tic_tac_toe_game(request):
+    room_id = request.GET.get('room_id')
+    action = request.GET.get('action')
+
+    if action == 'host' and room_id:
+        Room.objects.get_or_create(room_id=room_id)
+    
+    elif action == 'join' and room_id:
+        room_exists = Room.objects.filter(room_id=room_id).exists()
+        if not room_exists:
+            return render(request, "blog/games/tic-tac-toe/introduction.html", {
+                "post": Post.objects.get(slug="tic-tac-toe"), # Assuming usage context from intro page
+                "error": "Invalid Room ID"
+            })
+
+    return render(request, "blog/games/tic-tac-toe/game.html")
+
+def tic_tac_toe_move(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            room_id = data.get("room_id")
+            x = data.get("x")
+            y = data.get("y")
+            player = data.get("player")
+            
+            room = Room.objects.get(room_id=room_id)
+            # Check for existing move
+            if Move.objects.filter(room=room, x=x, y=y).exists():
+                return JsonResponse({"status": "error", "message": "Cell already occupied"})
+            
+            Move.objects.create(room=room, x=x, y=y, player=player)
+            return JsonResponse({"status": "success"})
+        except Room.DoesNotExist:
+             return JsonResponse({"status": "error", "message": "Room not found"})
+        except Exception as e:
+             return JsonResponse({"status": "error", "message": str(e)})
+    return JsonResponse({"status": "error", "message": "Invalid method"})
+
+def tic_tac_toe_get_updates(request):
+    room_id = request.GET.get("room_id")
+    try:
+        room = Room.objects.get(room_id=room_id)
+        # Using simple serialization for now
+        moves = list(room.moves.values('x', 'y', 'player'))
+        return JsonResponse({"status": "success", "moves": moves})
+    except Room.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Room not found"})
+
+def tic_tac_toe_clear(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            room_id = data.get("room_id")
+            room = Room.objects.get(room_id=room_id)
+            room.moves.all().delete()
+            return JsonResponse({"status": "success"})
+        except Room.DoesNotExist:
+             return JsonResponse({"status": "error", "message": "Room not found"})
+        except Exception as e:
+             return JsonResponse({"status": "error", "message": str(e)})
+    return JsonResponse({"status": "error", "message": "Invalid method"})
+
+def tic_tac_toe_end(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            room_id = data.get("room_id")
+            room = Room.objects.get(room_id=room_id)
+            room.delete()
+            return JsonResponse({"status": "success"})
+        except Room.DoesNotExist:
+             return JsonResponse({"status": "error", "message": "Room not found"})
+        except Exception as e:
+             return JsonResponse({"status": "error", "message": str(e)})
+    return JsonResponse({"status": "error", "message": "Invalid method"})
+
